@@ -1,0 +1,50 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String
+  voicePrint  String?  // Base64 encoded voice print audio
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  rooms       Room[]   // Rooms created by user
+  recordings  Recording[] // Recordings by user
+}
+
+model Room {
+  id          String   @id @default(cuid())
+  name        String
+  creatorId   String
+  creator     User     @relation(fields: [creatorId], references: [id])
+  isActive    Boolean  @default(true)
+  startedAt   DateTime?
+  endedAt     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  recordings  Recording[]
+  mergedAudio String?  // Path to merged audio file
+}
+
+model Recording {
+  id          String   @id @default(cuid())
+  roomId      String
+  room        Room     @relation(fields: [roomId], references: [id])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  audioPath   String   // Path to individual audio file
+  duration    Int?     // Duration in seconds
+  createdAt   DateTime @default(now())
+}
