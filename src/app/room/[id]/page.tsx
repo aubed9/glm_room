@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,6 +12,27 @@ interface Participant {
   id: string
   userName: string
   isRecording: boolean
+}
+
+const getExtensionFromMimeType = (mimeType: string | undefined | null) => {
+  if (!mimeType) return 'webm'
+  const baseType = mimeType.split(';')[0].toLowerCase()
+
+  switch (baseType) {
+    case 'audio/webm':
+      return 'webm'
+    case 'audio/ogg':
+      return 'ogg'
+    case 'audio/mp4':
+    case 'audio/m4a':
+    case 'audio/x-m4a':
+      return 'm4a'
+    case 'audio/wav':
+    case 'audio/x-wav':
+      return 'wav'
+    default:
+      return 'webm'
+  }
 }
 
 export default function RoomPage() {
@@ -29,9 +50,20 @@ export default function RoomPage() {
   const [isCheckingMic, setIsCheckingMic] = useState(false)
   const [autoRecordingMessage, setAutoRecordingMessage] = useState<string | null>(null)
   const [isAutoRecording, setIsAutoRecording] = useState(false)
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
+  const [lastUploadMode, setLastUploadMode] = useState<'auto' | 'manual' | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
+  const audioBlobRef = useRef<Blob | null>(null)
+  const roomRef = useRef<any>(null)
+  const isCreatorRef = useRef(false)
+  const currentUserRef = useRef<any>(null)
+  const isRecordingRef = useRef(false)
+  const autoStartHandlerRef = useRef<(() => Promise<void> | void) | null>(null)
+  const autoStopHandlerRef = useRef<(() => void) | null>(null)
+  const lastJoinedSocketIdRef = useRef<string | null>(null)
   
   const { socket, isConnected, connectionError, emit, on, off } = useSocket({ autoConnect: true })
 
@@ -44,26 +76,13 @@ export default function RoomPage() {
     }
   }, [])
 
-  useEffect(() => {
-    if (currentUser && roomId && socket && isConnected) {
-      fetchRoom()
-      connectWebSocket()
-    }
-  }, [currentUser, roomId, socket, isConnected])
-
-  useEffect(() => {
-    return () => {
-      // Cleanup will be handled by the useSocket hook
-    }
-  }, [])
-
-  const fetchRoom = async () => {
+  const fetchRoom = useCallback(async (userId: string) => {
     try {
       const response = await fetch(`/api/rooms/${roomId}`)
       if (response.ok) {
         const roomData = await response.json()
         setRoom(roomData)
-        setIsCreator(roomData.creatorId === currentUser.id)
+        setIsCreator(roomData.creatorId === userId)
       } else {
         alert('Room not found')
         window.location.href = '/rooms'
@@ -72,77 +91,131 @@ export default function RoomPage() {
       console.error('Error fetching room:', error)
       window.location.href = '/rooms'
     }
-  }
+  }, [roomId])
 
-  const connectWebSocket = () => {
-    if (!socket || !isConnected) {
-      console.log('Cannot connect WebSocket: socket or isConnected is false', { socket: !!socket, isConnected })
+  useEffect(() => {
+    if (!currentUser?.id || !roomId) return
+    fetchRoom(currentUser.id)
+  }, [currentUser?.id, roomId, fetchRoom])
+
+  useEffect(() => {
+    roomRef.current = room
+  }, [room])
+
+  useEffect(() => {
+    isCreatorRef.current = isCreator
+  }, [isCreator])
+
+  useEffect(() => {
+    currentUserRef.current = currentUser
+  }, [currentUser])
+
+  useEffect(() => {
+    isRecordingRef.current = isRecording
+  }, [isRecording])
+
+  useEffect(() => {
+    audioBlobRef.current = audioBlob
+  }, [audioBlob])
+
+  useEffect(() => {
+    if (!socket || !currentUser?.id) {
       return
     }
 
-    console.log('Connecting to WebSocket room:', roomId, 'for user:', currentUser.name)
+    if (!isConnected) {
+      lastJoinedSocketIdRef.current = null
+      return
+    }
 
-    // Join room
-    emit('join-room', {
-      roomId,
-      userId: currentUser.id,
-      userName: currentUser.name
-    })
+    const userId = currentUser.id
+    const userName = currentUser.name
+    const socketId = socket.id ?? null
 
-    // Listen for participant updates
-    on('participants-updated', (participants: any[]) => {
-      console.log('Participants updated:', participants)
-      // Map socket data structure to our Participant interface
-      const mappedParticipants = participants.map((p: any) => ({
+    console.log('Connecting to WebSocket room:', roomId, 'for user:', userName)
+
+    if (socketId && lastJoinedSocketIdRef.current === socketId) {
+      console.log('Socket already joined room, skipping re-emit')
+    } else {
+      emit('join-room', {
+        roomId,
+        userId,
+        userName
+      })
+      lastJoinedSocketIdRef.current = socketId
+    }
+
+    const handleParticipantsUpdated = (participantsList: any[]) => {
+      console.log('Participants updated:', participantsList)
+      const mappedParticipants = participantsList.map((p: any) => ({
         id: p.userId,
         userName: p.userName,
         isRecording: p.isRecording
       }))
       setParticipants(mappedParticipants)
-      
-      // Handle edge case: participant joins after recording has already started
-      if (!isCreator && room) {
-        const creator = mappedParticipants.find(p => p.id === room.creatorId)
-        if (creator && creator.isRecording && !isRecording) {
+
+      if (!isCreatorRef.current && roomRef.current) {
+        const creator = mappedParticipants.find(p => p.id === roomRef.current?.creatorId)
+        if (creator && creator.isRecording && !isRecordingRef.current) {
           console.log('Detected creator is already recording, auto-starting for new participant')
-          setTimeout(() => handleAutoStartRecording(), 1000) // Small delay to ensure everything is loaded
+          setTimeout(() => {
+            const autoStart = autoStartHandlerRef.current
+            if (autoStart) {
+              Promise.resolve(autoStart()).catch((error: unknown) => {
+                console.error('Auto-start sync failed:', error)
+              })
+            }
+          }, 1000)
         }
       }
-    })
+    }
 
-    // Listen for recording events
-    on('recording-started', (data: { userId: string }) => {
+    const handleRecordingStarted = (data: { userId: string }) => {
       console.log('Recording started for user:', data.userId)
       setParticipants(prev => prev.map(p =>
         p.id === data.userId ? { ...p, isRecording: true } : p
       ))
-      
-      // Handle automatic recording for non-creator participants
-      if (!isCreator && data.userId !== currentUser.id) {
-        // Check if the event is from the room creator
-        if (data.userId === room?.creatorId) {
-          console.log('Room creator started recording, auto-starting for participant')
-          handleAutoStartRecording()
+
+      const creatorId = roomRef.current?.creatorId
+      const currentId = currentUserRef.current?.id
+      if (!isCreatorRef.current && data.userId !== currentId && data.userId === creatorId) {
+        console.log('Room creator started recording, auto-starting for participant')
+        const autoStart = autoStartHandlerRef.current
+        if (autoStart) {
+          Promise.resolve(autoStart()).catch((error: unknown) => {
+            console.error('Auto-start sync failed:', error)
+          })
         }
       }
-    })
+    }
 
-    on('recording-stopped', (data: { userId: string }) => {
+    const handleRecordingStopped = (data: { userId: string }) => {
       console.log('Recording stopped for user:', data.userId)
       setParticipants(prev => prev.map(p =>
         p.id === data.userId ? { ...p, isRecording: false } : p
       ))
-      
-      // Handle automatic recording stop for non-creator participants
-      if (!isCreator && data.userId !== currentUser.id) {
-        // Check if the event is from the room creator
-        if (data.userId === room?.creatorId) {
-          console.log('Room creator stopped recording, auto-stopping for participant')
-          handleAutoStopRecording()
+
+      const creatorId = roomRef.current?.creatorId
+      const currentId = currentUserRef.current?.id
+      if (!isCreatorRef.current && data.userId !== currentId && data.userId === creatorId) {
+        console.log('Room creator stopped recording, auto-stopping for participant')
+        const autoStop = autoStopHandlerRef.current
+        if (autoStop) {
+          autoStop()
         }
       }
-    })
-  }
+    }
+
+    on('participants-updated', handleParticipantsUpdated)
+    on('recording-started', handleRecordingStarted)
+    on('recording-stopped', handleRecordingStopped)
+
+    return () => {
+      off('participants-updated', handleParticipantsUpdated)
+      off('recording-started', handleRecordingStarted)
+      off('recording-stopped', handleRecordingStopped)
+    }
+  }, [socket, isConnected, currentUser?.id, currentUser?.name, roomId, emit, on, off])
 
   const checkMicrophonePermission = async () => {
     setIsCheckingMic(true)
@@ -152,7 +225,7 @@ export default function RoomPage() {
       const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName })
       
       if (permissionStatus.state === 'denied') {
-        setMicError('❌ Microphone permission is denied. Please enable it in your browser settings.')
+        setMicError('âŒ Microphone permission is denied. Please enable it in your browser settings.')
         setIsCheckingMic(false)
         return false
       }
@@ -162,7 +235,7 @@ export default function RoomPage() {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 44100
+          sampleRate: 48000
         } 
       })
       
@@ -174,13 +247,13 @@ export default function RoomPage() {
       setIsCheckingMic(false)
       
       if (error.name === 'NotAllowedError') {
-        setMicError('❌ Microphone access was denied. Please allow microphone access when prompted.')
+        setMicError('âŒ Microphone access was denied. Please allow microphone access when prompted.')
       } else if (error.name === 'NotFoundError') {
-        setMicError('❌ No microphone found. Please connect a microphone.')
+        setMicError('âŒ No microphone found. Please connect a microphone.')
       } else if (error.name === 'NotReadableError') {
-        setMicError('❌ Microphone is already in use by another application.')
+        setMicError('âŒ Microphone is already in use by another application.')
       } else {
-        setMicError(`❌ Error: ${error.message || 'Failed to access microphone'}`)
+        setMicError(`âŒ Error: ${error.message || 'Failed to access microphone'}`)
       }
       
       return false
@@ -195,13 +268,19 @@ export default function RoomPage() {
       return
     }
 
+    audioBlobRef.current = null
+    setAudioBlob(null)
+    setUploadStatus('idle')
+    setUploadError(null)
+    setLastUploadMode(null)
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 44100
+          sampleRate: 48000
         } 
       })
       
@@ -233,8 +312,12 @@ export default function RoomPage() {
       }
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType })
-        setAudioBlob(audioBlob)
+        const completedBlob = new Blob(audioChunksRef.current, { type: mimeType })
+        audioBlobRef.current = completedBlob
+        setAudioBlob(completedBlob)
+        uploadRecording(completedBlob, mimeType, { auto: true }).catch((error) => {
+          console.error('Automatic upload failed:', error)
+        })
         stream.getTracks().forEach(track => track.stop())
       }
 
@@ -242,55 +325,67 @@ export default function RoomPage() {
         console.error('MediaRecorder error:', event)
         setMicError(`Recording error: ${event.error || 'Unknown recording error'}`)
         setIsRecording(false)
+        isRecordingRef.current = false
       }
 
       mediaRecorder.start(100)
       setIsRecording(true)
+      isRecordingRef.current = true
       
       // Only emit if socket is connected
       if (isConnected && socket) {
-        emit('recording-started', { roomId, userId: currentUser.id })
+        const activeUser = currentUserRef.current || currentUser
+        if (activeUser?.id) {
+          emit('recording-started', { roomId, userId: activeUser.id })
+        }
       } else {
         console.log('Socket not connected, recording locally only')
       }
     } catch (error: any) {
       console.error('Error accessing microphone:', error)
+      isRecordingRef.current = false
       
       if (error.name === 'NotAllowedError') {
-        setMicError('❌ Microphone access was denied. Please allow microphone access when prompted.')
+        setMicError('âŒ Microphone access was denied. Please allow microphone access when prompted.')
       } else if (error.name === 'NotFoundError') {
-        setMicError('❌ No microphone found. Please connect a microphone.')
+        setMicError('âŒ No microphone found. Please connect a microphone.')
       } else if (error.name === 'NotReadableError') {
-        setMicError('❌ Microphone is already in use by another application.')
+        setMicError('âŒ Microphone is already in use by another application.')
       } else {
-        setMicError(`❌ Error: ${error.message || 'Failed to access microphone'}`)
+        setMicError(`âŒ Error: ${error.message || 'Failed to access microphone'}`)
       }
     }
   }
 
   const handleAutoStartRecording = async () => {
     // Only proceed if not already recording and not the creator
-    if (isRecording || isCreator) return
+    if (isRecordingRef.current || isCreatorRef.current) return
     
     setIsAutoRecording(true)
-    setAutoRecordingMessage('🎤 Room creator started recording. Auto-starting your recording...')
+    setAutoRecordingMessage('ðŸŽ¤ Room creator started recording. Auto-starting your recording...')
     
     // Check microphone permission first
     const canAccess = await checkMicrophonePermission()
     if (!canAccess) {
-      setAutoRecordingMessage('❌ Cannot start recording: Microphone access denied')
+      setAutoRecordingMessage('âŒ Cannot start recording: Microphone access denied')
       setTimeout(() => setAutoRecordingMessage(null), 3000)
       setIsAutoRecording(false)
       return
     }
 
+
+    audioBlobRef.current = null
+    setAudioBlob(null)
+    setUploadStatus('idle')
+    setUploadError(null)
+    setLastUploadMode(null)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 44100
+          sampleRate: 48000
         }
       })
       
@@ -322,8 +417,12 @@ export default function RoomPage() {
       }
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType })
-        setAudioBlob(audioBlob)
+        const completedBlob = new Blob(audioChunksRef.current, { type: mimeType })
+        audioBlobRef.current = completedBlob
+        setAudioBlob(completedBlob)
+        uploadRecording(completedBlob, mimeType, { auto: true }).catch((error) => {
+          console.error('Automatic upload failed:', error)
+        })
         stream.getTracks().forEach(track => track.stop())
       }
 
@@ -331,32 +430,38 @@ export default function RoomPage() {
         console.error('MediaRecorder error:', event)
         setMicError(`Auto-recording error: ${event.error || 'Unknown recording error'}`)
         setIsRecording(false)
+        isRecordingRef.current = false
         setIsAutoRecording(false)
-        setAutoRecordingMessage('❌ Auto-recording failed')
+        setAutoRecordingMessage('âŒ Auto-recording failed')
         setTimeout(() => setAutoRecordingMessage(null), 3000)
       }
 
       mediaRecorder.start(100)
       setIsRecording(true)
-      setAutoRecordingMessage('✅ Recording automatically started')
+      isRecordingRef.current = true
+      setAutoRecordingMessage('âœ… Recording automatically started')
       setTimeout(() => setAutoRecordingMessage(null), 3000)
       
       // Emit recording started event
       if (isConnected && socket) {
-        emit('recording-started', { roomId, userId: currentUser.id })
+        const activeUser = currentUserRef.current || currentUser
+        if (activeUser?.id) {
+          emit('recording-started', { roomId, userId: activeUser.id })
+        }
       }
     } catch (error: any) {
       console.error('Error in auto-starting recording:', error)
+      isRecordingRef.current = false
       setIsAutoRecording(false)
       
       if (error.name === 'NotAllowedError') {
-        setAutoRecordingMessage('❌ Microphone access was denied for auto-recording')
+        setAutoRecordingMessage('âŒ Microphone access was denied for auto-recording')
       } else if (error.name === 'NotFoundError') {
-        setAutoRecordingMessage('❌ No microphone found for auto-recording')
+        setAutoRecordingMessage('âŒ No microphone found for auto-recording')
       } else if (error.name === 'NotReadableError') {
-        setAutoRecordingMessage('❌ Microphone is already in use by another application')
+        setAutoRecordingMessage('âŒ Microphone is already in use by another application')
       } else {
-        setAutoRecordingMessage(`❌ Auto-recording error: ${error.message || 'Failed to start recording'}`)
+        setAutoRecordingMessage(`âŒ Auto-recording error: ${error.message || 'Failed to start recording'}`)
       }
       setTimeout(() => setAutoRecordingMessage(null), 3000)
     }
@@ -364,65 +469,153 @@ export default function RoomPage() {
 
   const handleAutoStopRecording = () => {
     // Only proceed if currently recording and not the creator
-    if (!isRecording || isCreator) return
+    if (!isRecordingRef.current || isCreatorRef.current) return
     
-    setAutoRecordingMessage('⏹️ Room creator stopped recording. Auto-stopping your recording...')
+    setAutoRecordingMessage('â¹ï¸ Room creator stopped recording. Auto-stopping your recording...')
     
-    if (mediaRecorderRef.current && isRecording) {
+    if (mediaRecorderRef.current && isRecordingRef.current) {
       mediaRecorderRef.current.stop()
       setIsRecording(false)
+      isRecordingRef.current = false
       setIsAutoRecording(false)
-      setAutoRecordingMessage('✅ Recording automatically stopped')
+      setAutoRecordingMessage('âœ… Recording automatically stopped')
       setTimeout(() => setAutoRecordingMessage(null), 3000)
       
       // Emit recording stopped event
       if (isConnected && socket) {
-        emit('recording-stopped', { roomId, userId: currentUser.id })
+        const activeUser = currentUserRef.current || currentUser
+        if (activeUser?.id) {
+          emit('recording-stopped', { roomId, userId: activeUser.id })
+        }
       }
     }
   }
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
+    if (mediaRecorderRef.current && isRecordingRef.current) {
       mediaRecorderRef.current.stop()
       setIsRecording(false)
+      isRecordingRef.current = false
       
       // Only emit if socket is connected
       if (isConnected && socket) {
-        emit('recording-stopped', { roomId, userId: currentUser.id })
+        const activeUser = currentUserRef.current || currentUser
+        if (activeUser?.id) {
+          emit('recording-stopped', { roomId, userId: activeUser.id })
+        }
       } else {
         console.log('Socket not connected, stopped recording locally only')
       }
     }
   }
 
-  const uploadRecording = async () => {
-    if (!audioBlob || !currentUser) return
+  useEffect(() => {
+    autoStartHandlerRef.current = handleAutoStartRecording
+  }, [handleAutoStartRecording])
+
+  useEffect(() => {
+    autoStopHandlerRef.current = handleAutoStopRecording
+  }, [handleAutoStopRecording])
+
+  useEffect(() => {
+    const creatorId = room?.creatorId
+    if (!creatorId) {
+      return
+    }
+
+    if (isCreatorRef.current) {
+      return
+    }
+
+    const creatorParticipant = participants.find((participant) => participant.id === creatorId)
+    if (!creatorParticipant) {
+      return
+    }
+
+    if (creatorParticipant.isRecording && !isRecordingRef.current) {
+      const autoStart = autoStartHandlerRef.current
+      if (autoStart) {
+        Promise.resolve(autoStart()).catch((error: unknown) => {
+          console.error('Auto-start sync failed:', error)
+        })
+      }
+    } else if (!creatorParticipant.isRecording && isRecordingRef.current) {
+      const autoStop = autoStopHandlerRef.current
+      if (autoStop) {
+        autoStop()
+      }
+    }
+  }, [participants, room?.creatorId])
+
+  const uploadRecording = useCallback(async (
+    blobOverride?: Blob | null,
+    mimeTypeOverride?: string | null,
+    options?: { auto?: boolean }
+  ) => {
+    const blobToUpload = blobOverride ?? audioBlobRef.current
+    const activeUser = currentUserRef.current
+
+    if (!blobToUpload || !activeUser?.id) {
+      console.warn('No recording or user available for upload')
+      return false
+    }
+
+    const mimeType = mimeTypeOverride || blobToUpload.type || 'audio/webm'
+    const extension = getExtensionFromMimeType(mimeType)
+    const fileName = `recording.${extension}`
+    const formData = new FormData()
+
+    if (typeof File !== 'undefined') {
+      const audioFile = new File([blobToUpload], fileName, { type: mimeType })
+      formData.append('audio', audioFile)
+    } else {
+      formData.append('audio', blobToUpload, fileName)
+    }
+
+    formData.append('roomId', roomId)
+    formData.append('userId', activeUser.id)
+    formData.append('mimeType', mimeType)
+    formData.append('extension', extension)
 
     setIsUploading(true)
-    try {
-      const formData = new FormData()
-      formData.append('audio', audioBlob, 'recording.wav')
-      formData.append('roomId', roomId)
-      formData.append('userId', currentUser.id)
+    setUploadStatus('uploading')
+    setUploadError(null)
+    setLastUploadMode(options?.auto ? 'auto' : 'manual')
 
+    try {
       const response = await fetch('/api/rooms/upload', {
         method: 'POST',
         body: formData
       })
 
-      if (response.ok) {
-        setAudioBlob(null)
-        alert('Recording uploaded successfully!')
-      } else {
-        alert('Failed to upload recording')
+      if (!response.ok) {
+        throw new Error(`Upload failed with status ${response.status}`)
       }
-    } catch (error) {
-      alert('Error uploading recording')
+
+      setUploadStatus('success')
+
+      if (options?.auto && !isCreatorRef.current) {
+        setAutoRecordingMessage('Recording uploaded automatically.')
+        setTimeout(() => setAutoRecordingMessage(null), 3000)
+      }
+
+      return true
+    } catch (error: unknown) {
+      console.error('Error uploading recording:', error)
+      setUploadStatus('error')
+      const message = error instanceof Error ? error.message : 'Upload failed. Please try again.'
+      setUploadError(message)
+
+      if (options?.auto && !isCreatorRef.current) {
+        setAutoRecordingMessage('Upload failed. Please upload your recording manually.')
+        setTimeout(() => setAutoRecordingMessage(null), 4000)
+      }
+
+      return false
     } finally {
       setIsUploading(false)
     }
-  }
+  }, [roomId])
 
   const endSession = async () => {
     try {
@@ -455,7 +648,7 @@ export default function RoomPage() {
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-slate-900 mb-2">{room.name}</h1>
           <p className="text-slate-600">
-            Created by {room.creator?.name || 'Unknown'} • 
+            Created by {room.creator?.name || 'Unknown'} â€¢ 
             {room.isActive ? (
               <Badge variant="default" className="ml-2">Active</Badge>
             ) : (
@@ -464,7 +657,7 @@ export default function RoomPage() {
           </p>
           <div className="mt-2">
             <Badge variant={isConnected ? "default" : "destructive"}>
-              {isConnected ? "🟢 Connected" : "🔴 Disconnected"}
+              {isConnected ? "ðŸŸ¢ Connected" : "ðŸ”´ Disconnected"}
             </Badge>
             {socket && (
               <Badge variant="outline" className="ml-2">
@@ -473,7 +666,7 @@ export default function RoomPage() {
             )}
             {connectionError && (
               <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
-                ⚠️ {connectionError}
+                âš ï¸ {connectionError}
               </div>
             )}
           </div>
@@ -498,12 +691,12 @@ export default function RoomPage() {
                       <p className="text-sm text-yellow-800">
                         {connectionError ? (
                           <>
-                            ⚠️ {connectionError}
+                            âš ï¸ {connectionError}
                             <br />
                             <span className="text-xs">Recording will work locally, but real-time sync is disabled.</span>
                           </>
                         ) : (
-                          '⚠️ Connecting to room... Please wait.'
+                          'âš ï¸ Connecting to room... Please wait.'
                         )}
                       </p>
                     </div>
@@ -514,7 +707,7 @@ export default function RoomPage() {
                     className={`w-full ${isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'}`}
                     disabled={!room.isActive || isCheckingMic}
                   >
-                    {isCheckingMic ? '🔄 Checking...' : isRecording ? '⏹️ Stop Recording' : '🎤 Start Recording'}
+                    {isCheckingMic ? 'ðŸ”„ Checking...' : isRecording ? 'â¹ï¸ Stop Recording' : 'ðŸŽ¤ Start Recording'}
                   </Button>
                   
                   {isRecording && (
@@ -539,9 +732,9 @@ export default function RoomPage() {
                     onClick={endSession}
                     variant="destructive"
                     className="w-full"
-                    disabled={isRecording}
+                    disabled={isRecording || isUploading}
                   >
-                    🛑 End Session
+                    ðŸ›‘ End Session
                   </Button>
                 </div>
               ) : (
@@ -565,9 +758,9 @@ export default function RoomPage() {
                   {/* Auto-recording message */}
                   {autoRecordingMessage && (
                     <div className={`p-3 rounded-lg text-sm ${
-                      autoRecordingMessage.includes('❌')
+                      autoRecordingMessage.includes('âŒ')
                         ? 'bg-red-50 border border-red-200 text-red-800'
-                        : autoRecordingMessage.includes('✅')
+                        : autoRecordingMessage.includes('âœ…')
                         ? 'bg-green-50 border border-green-200 text-green-800'
                         : 'bg-blue-50 border border-blue-200 text-blue-800'
                     }`}>
@@ -585,12 +778,31 @@ export default function RoomPage() {
                     <audio controls className="w-full">
                       <source src={URL.createObjectURL(audioBlob)} type={audioBlob.type} />
                     </audio>
+                    {uploadStatus === 'uploading' && (
+                      <p className="text-sm text-slate-600">Uploading recording...</p>
+                    )}
+                    {uploadStatus === 'success' && (
+                      <p className="text-sm text-green-600">
+                        {lastUploadMode === 'auto'
+                          ? 'Recording uploaded automatically.'
+                          : 'Recording uploaded successfully.'}
+                      </p>
+                    )}
+                    {uploadStatus === 'error' && (
+                      <p className="text-sm text-red-600">
+                        {uploadError ? `Upload failed: ${uploadError}` : 'Upload failed. Please try again.'}
+                      </p>
+                    )}
                     <Button
-                      onClick={uploadRecording}
+                      onClick={() => uploadRecording(undefined, undefined, { auto: false })}
                       className="w-full"
                       disabled={isUploading}
                     >
-                      {isUploading ? 'Uploading...' : '📤 Upload Recording'}
+                      {isUploading
+                        ? 'Uploading...'
+                        : lastUploadMode === 'auto' && uploadStatus === 'success'
+                        ? 'Re-upload Recording'
+                        : 'Upload Recording'}
                     </Button>
                   </div>
                 </div>
@@ -640,10 +852,11 @@ export default function RoomPage() {
 
         <div className="mt-8 text-center">
           <Button variant="outline" onClick={() => window.location.href = '/rooms'}>
-            ← Back to Rooms
+            â† Back to Rooms
           </Button>
         </div>
       </div>
     </div>
   )
 }
+

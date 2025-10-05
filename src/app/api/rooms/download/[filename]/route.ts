@@ -1,6 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { readFile } from 'fs/promises'
-import { join } from 'path'
+import { join, extname } from 'path'
+
+const getContentTypeFromFilename = (filename: string) => {
+  const extension = extname(filename).toLowerCase()
+
+  switch (extension) {
+    case '.wav':
+    case '.wave':
+      return 'audio/wav'
+    case '.webm':
+      return 'audio/webm'
+    case '.ogg':
+      return 'audio/ogg'
+    case '.mp3':
+      return 'audio/mpeg'
+    case '.m4a':
+    case '.mp4':
+      return 'audio/mp4'
+    default:
+      return 'application/octet-stream'
+  }
+}
 
 export async function GET(
   request: NextRequest,
@@ -14,7 +35,7 @@ export async function GET(
     const fileBuffer = await readFile(filePath)
     
     // Determine content type
-    const contentType = filename.endsWith('.wav') ? 'audio/wav' : 'audio/mpeg'
+    const contentType = getContentTypeFromFilename(filename)
     
     // Return the file
     return new NextResponse(fileBuffer, {

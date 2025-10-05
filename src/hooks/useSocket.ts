@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
 
 interface UseSocketOptions {
@@ -88,37 +88,37 @@ export const useSocket = (options: UseSocketOptions = { autoConnect: true }) => 
     }
   }, [options.autoConnect])
 
-  const connect = () => {
+  const connect = useCallback(() => {
     if (socketRef.current && !socketRef.current.connected) {
       socketRef.current.connect()
     }
-  }
+  }, [])
 
-  const disconnect = () => {
+  const disconnect = useCallback(() => {
     if (socketRef.current && socketRef.current.connected) {
       socketRef.current.disconnect()
     }
-  }
+  }, [])
 
-  const emit = (event: string, data: any) => {
+  const emit = useCallback((event: string, data: any) => {
     if (socketRef.current && socketRef.current.connected) {
       socketRef.current.emit(event, data)
     } else {
       console.warn('Socket not connected, cannot emit:', event)
     }
-  }
+  }, [])
 
-  const on = (event: string, callback: (...args: any[]) => void) => {
+  const on = useCallback((event: string, callback: (...args: any[]) => void) => {
     if (socketRef.current) {
       socketRef.current.on(event, callback)
     }
-  }
+  }, [])
 
-  const off = (event: string, callback?: (...args: any[]) => void) => {
+  const off = useCallback((event: string, callback?: (...args: any[]) => void) => {
     if (socketRef.current) {
       socketRef.current.off(event, callback)
     }
-  }
+  }, [])
 
   return {
     socket,
