@@ -35,6 +35,50 @@ const getExtensionFromMimeType = (mimeType: string | undefined | null) => {
   }
 }
 
+const buildAudioConstraints = (): MediaTrackConstraints => {
+  const constraints: MediaTrackConstraints = {
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true,
+  }
+
+  if (typeof navigator !== 'undefined') {
+    const supported = navigator.mediaDevices?.getSupportedConstraints?.() ?? {}
+    if (supported.channelCount) {
+      (constraints as Record<string, unknown>).channelCount = { ideal: 1, min: 1 }
+    }
+    if (supported.sampleRate) {
+      (constraints as Record<string, unknown>).sampleRate = { ideal: 48000 }
+    }
+  }
+
+  return constraints
+}
+
+const buildRecorderOptions = (mimeType: string): MediaRecorderOptions => {
+  const normalized = mimeType.toLowerCase()
+  const options: MediaRecorderOptions = { mimeType }
+
+  if (normalized.includes('opus')) {
+    options.audioBitsPerSecond = 128000
+  }
+
+  return options
+}
+
+const getAutoRecordingMessageVariant = (message: string): string => {
+  const normalized = message.toLowerCase()
+  if (normalized.includes('cannot') || normalized.includes('denied') || normalized.includes('error') || normalized.includes('fail')) {
+    return 'bg-red-50 border border-red-200 text-red-800'
+  }
+  if (normalized.includes('automatically')) {
+    return 'bg-green-50 border border-green-200 text-green-800'
+  }
+  return 'bg-blue-50 border border-blue-200 text-blue-800'
+}
+
+
+
 export default function RoomPage() {
   const params = useParams()
   const roomId = params.id as string
@@ -57,6 +101,7 @@ export default function RoomPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const audioBlobRef = useRef<Blob | null>(null)
+  const activeStreamRef = useRef<MediaStream | null>(null)
   const roomRef = useRef<any>(null)
   const isCreatorRef = useRef(false)
   const currentUserRef = useRef<any>(null)
@@ -225,18 +270,13 @@ export default function RoomPage() {
       const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName })
       
       if (permissionStatus.state === 'denied') {
-        setMicError('âŒ Microphone permission is denied. Please enable it in your browser settings.')
+        setMicError('Microphone permission is denied. Please enable it in your browser settings.')
         setIsCheckingMic(false)
         return false
       }
       
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 48000
-        } 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: buildAudioConstraints(),
       })
       
       stream.getTracks().forEach(track => track.stop())
@@ -247,13 +287,13 @@ export default function RoomPage() {
       setIsCheckingMic(false)
       
       if (error.name === 'NotAllowedError') {
-        setMicError('âŒ Microphone access was denied. Please allow microphone access when prompted.')
+        setMicError('Microphone access was denied. Please allow microphone access when prompted.')
       } else if (error.name === 'NotFoundError') {
-        setMicError('âŒ No microphone found. Please connect a microphone.')
+        setMicError('No microphone found. Please connect a microphone.')
       } else if (error.name === 'NotReadableError') {
-        setMicError('âŒ Microphone is already in use by another application.')
+        setMicError('Microphone is already in use by another application.')
       } else {
-        setMicError(`âŒ Error: ${error.message || 'Failed to access microphone'}`)
+        setMicError('An unexpected microphone error occurred. Please try again.')
       }
       
       return false
@@ -275,15 +315,12 @@ export default function RoomPage() {
     setLastUploadMode(null)
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 48000
-        } 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: buildAudioConstraints(),
       })
-      
+
+      activeStreamRef.current = stream
+
       let mimeType = 'audio/webm'
       const supportedTypes = [
         'audio/webm;codecs=opus',
@@ -293,15 +330,15 @@ export default function RoomPage() {
         'audio/wav',
         'audio/mp4'
       ]
-      
+
       for (const type of supportedTypes) {
         if (MediaRecorder.isTypeSupported(type)) {
           mimeType = type
           break
         }
       }
-      
-      const mediaRecorder = new MediaRecorder(stream, { mimeType })
+
+      const mediaRecorder = new MediaRecorder(stream, buildRecorderOptions(mimeType))
       mediaRecorderRef.current = mediaRecorder
       audioChunksRef.current = []
 
@@ -319,20 +356,30 @@ export default function RoomPage() {
           console.error('Automatic upload failed:', error)
         })
         stream.getTracks().forEach(track => track.stop())
+        activeStreamRef.current = null
+        mediaRecorderRef.current = null
+        audioChunksRef.current = []
       }
 
       mediaRecorder.onerror = (event: any) => {
         console.error('MediaRecorder error:', event)
-        setMicError(`Recording error: ${event.error || 'Unknown recording error'}`)
+        setMicError('A recording error occurred. Please try again.')
         setIsRecording(false)
         isRecordingRef.current = false
+        try {
+          stream.getTracks().forEach(track => track.stop())
+        } catch (stopError) {
+          console.error('Failed to stop stream after recorder error:', stopError)
+        }
+        activeStreamRef.current = null
+        mediaRecorderRef.current = null
+        audioChunksRef.current = []
       }
 
-      mediaRecorder.start(100)
+      mediaRecorder.start()
       setIsRecording(true)
       isRecordingRef.current = true
-      
-      // Only emit if socket is connected
+
       if (isConnected && socket) {
         const activeUser = currentUserRef.current || currentUser
         if (activeUser?.id) {
@@ -343,36 +390,41 @@ export default function RoomPage() {
       }
     } catch (error: any) {
       console.error('Error accessing microphone:', error)
+      setIsRecording(false)
+      const currentStream = activeStreamRef.current
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop())
+        activeStreamRef.current = null
+      }
+      mediaRecorderRef.current = null
+      audioChunksRef.current = []
       isRecordingRef.current = false
-      
+
       if (error.name === 'NotAllowedError') {
-        setMicError('âŒ Microphone access was denied. Please allow microphone access when prompted.')
+        setMicError('Microphone access was denied. Please allow microphone access when prompted.')
       } else if (error.name === 'NotFoundError') {
-        setMicError('âŒ No microphone found. Please connect a microphone.')
+        setMicError('No microphone found. Please connect a microphone.')
       } else if (error.name === 'NotReadableError') {
-        setMicError('âŒ Microphone is already in use by another application.')
+        setMicError('Microphone is already in use by another application.')
       } else {
-        setMicError(`âŒ Error: ${error.message || 'Failed to access microphone'}`)
+        setMicError('An unexpected microphone error occurred. Please try again.')
       }
     }
   }
 
   const handleAutoStartRecording = async () => {
-    // Only proceed if not already recording and not the creator
     if (isRecordingRef.current || isCreatorRef.current) return
     
     setIsAutoRecording(true)
-    setAutoRecordingMessage('ðŸŽ¤ Room creator started recording. Auto-starting your recording...')
+    setAutoRecordingMessage('Room creator started recording. Auto-starting your recording...')
     
-    // Check microphone permission first
     const canAccess = await checkMicrophonePermission()
     if (!canAccess) {
-      setAutoRecordingMessage('âŒ Cannot start recording: Microphone access denied')
+      setAutoRecordingMessage('Cannot start recording: Microphone access denied')
       setTimeout(() => setAutoRecordingMessage(null), 3000)
       setIsAutoRecording(false)
       return
     }
-
 
     audioBlobRef.current = null
     setAudioBlob(null)
@@ -381,14 +433,11 @@ export default function RoomPage() {
     setLastUploadMode(null)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 48000
-        }
+        audio: buildAudioConstraints(),
       })
-      
+
+      activeStreamRef.current = stream
+
       let mimeType = 'audio/webm'
       const supportedTypes = [
         'audio/webm;codecs=opus',
@@ -398,15 +447,15 @@ export default function RoomPage() {
         'audio/wav',
         'audio/mp4'
       ]
-      
+
       for (const type of supportedTypes) {
         if (MediaRecorder.isTypeSupported(type)) {
           mimeType = type
           break
         }
       }
-      
-      const mediaRecorder = new MediaRecorder(stream, { mimeType })
+
+      const mediaRecorder = new MediaRecorder(stream, buildRecorderOptions(mimeType))
       mediaRecorderRef.current = mediaRecorder
       audioChunksRef.current = []
 
@@ -424,25 +473,35 @@ export default function RoomPage() {
           console.error('Automatic upload failed:', error)
         })
         stream.getTracks().forEach(track => track.stop())
+        activeStreamRef.current = null
+        mediaRecorderRef.current = null
+        audioChunksRef.current = []
       }
 
       mediaRecorder.onerror = (event: any) => {
         console.error('MediaRecorder error:', event)
-        setMicError(`Auto-recording error: ${event.error || 'Unknown recording error'}`)
+        setMicError('Auto-recording encountered an unexpected error. Please try again.')
         setIsRecording(false)
         isRecordingRef.current = false
         setIsAutoRecording(false)
-        setAutoRecordingMessage('âŒ Auto-recording failed')
+        try {
+          stream.getTracks().forEach(track => track.stop())
+        } catch (stopError) {
+          console.error('Failed to stop stream after auto-recorder error:', stopError)
+        }
+        activeStreamRef.current = null
+        mediaRecorderRef.current = null
+        audioChunksRef.current = []
+        setAutoRecordingMessage('Auto-recording failed.')
         setTimeout(() => setAutoRecordingMessage(null), 3000)
       }
 
-      mediaRecorder.start(100)
+      mediaRecorder.start()
       setIsRecording(true)
       isRecordingRef.current = true
-      setAutoRecordingMessage('âœ… Recording automatically started')
+      setAutoRecordingMessage('Recording automatically started')
       setTimeout(() => setAutoRecordingMessage(null), 3000)
       
-      // Emit recording started event
       if (isConnected && socket) {
         const activeUser = currentUserRef.current || currentUser
         if (activeUser?.id) {
@@ -451,17 +510,26 @@ export default function RoomPage() {
       }
     } catch (error: any) {
       console.error('Error in auto-starting recording:', error)
+      setIsRecording(false)
       isRecordingRef.current = false
       setIsAutoRecording(false)
-      
+
+      const currentStream = activeStreamRef.current
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop())
+        activeStreamRef.current = null
+      }
+      mediaRecorderRef.current = null
+      audioChunksRef.current = []
+
       if (error.name === 'NotAllowedError') {
-        setAutoRecordingMessage('âŒ Microphone access was denied for auto-recording')
+        setAutoRecordingMessage('Microphone access was denied for auto-recording')
       } else if (error.name === 'NotFoundError') {
-        setAutoRecordingMessage('âŒ No microphone found for auto-recording')
+        setAutoRecordingMessage('No microphone found for auto-recording')
       } else if (error.name === 'NotReadableError') {
-        setAutoRecordingMessage('âŒ Microphone is already in use by another application')
+        setAutoRecordingMessage('Microphone is already in use by another application')
       } else {
-        setAutoRecordingMessage(`âŒ Auto-recording error: ${error.message || 'Failed to start recording'}`)
+        setAutoRecordingMessage('Auto-recording encountered an unexpected error.')
       }
       setTimeout(() => setAutoRecordingMessage(null), 3000)
     }
@@ -471,14 +539,14 @@ export default function RoomPage() {
     // Only proceed if currently recording and not the creator
     if (!isRecordingRef.current || isCreatorRef.current) return
     
-    setAutoRecordingMessage('â¹ï¸ Room creator stopped recording. Auto-stopping your recording...')
+    setAutoRecordingMessage('🛑 Room creator stopped recording. Auto-stopping your recording...')
     
     if (mediaRecorderRef.current && isRecordingRef.current) {
       mediaRecorderRef.current.stop()
       setIsRecording(false)
       isRecordingRef.current = false
       setIsAutoRecording(false)
-      setAutoRecordingMessage('âœ… Recording automatically stopped')
+      setAutoRecordingMessage('✅ Recording automatically stopped')
       setTimeout(() => setAutoRecordingMessage(null), 3000)
       
       // Emit recording stopped event
@@ -516,6 +584,23 @@ export default function RoomPage() {
   useEffect(() => {
     autoStopHandlerRef.current = handleAutoStopRecording
   }, [handleAutoStopRecording])
+
+  useEffect(() => {
+    return () => {
+      try {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+          mediaRecorderRef.current.stop()
+        }
+      } catch (error) {
+        console.warn('Error stopping recorder on unmount:', error)
+      }
+      const stream = activeStreamRef.current
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop())
+        activeStreamRef.current = null
+      }
+    }
+  }, [])
 
   useEffect(() => {
     const creatorId = room?.creatorId
@@ -757,13 +842,7 @@ export default function RoomPage() {
                   
                   {/* Auto-recording message */}
                   {autoRecordingMessage && (
-                    <div className={`p-3 rounded-lg text-sm ${
-                      autoRecordingMessage.includes('âŒ')
-                        ? 'bg-red-50 border border-red-200 text-red-800'
-                        : autoRecordingMessage.includes('âœ…')
-                        ? 'bg-green-50 border border-green-200 text-green-800'
-                        : 'bg-blue-50 border border-blue-200 text-blue-800'
-                    }`}>
+                    <div className={`p-3 rounded-lg text-sm ${getAutoRecordingMessageVariant(autoRecordingMessage)}`}>
                       {autoRecordingMessage}
                     </div>
                   )}

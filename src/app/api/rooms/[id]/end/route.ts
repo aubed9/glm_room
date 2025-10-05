@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { exec } from 'child_process'
+import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { join, extname } from 'path'
 
-const execAsync = promisify(exec)
+const execFileAsync = promisify(execFile)
 
 const sanitizeExtension = (extension: string | null | undefined) => {
   if (!extension) return ''
   return extension.toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+const formatFfmpegListEntry = (filePath: string) => {
+  const normalized = filePath.replace(/\\/g, '/')
+  const escaped = normalized.replace(/'/g, `'\''`)
+  return `file '${escaped}'`
 }
 
 export async function POST(
@@ -52,7 +58,9 @@ export async function POST(
         return { path, extension }
       })
 
-      const uniqueExtensions = Array.from(new Set(recordingFiles.map(file => file.extension).filter(Boolean)))
+      const uniqueExtensions = Array.from(
+        new Set(recordingFiles.map(file => file.extension).filter(Boolean))
+      )
 
       if (uniqueExtensions.length === 1) {
         const extension = uniqueExtensions[0]
@@ -62,38 +70,35 @@ export async function POST(
         // Create a list file for ffmpeg
         const listFile = join(uploadsDir, `${roomId}_list.txt`)
         const fileListContent = recordingFiles
-          .map(file => {
-            const normalizedPath = file.path.replace(/\\/g, '/').replace(/"/g, '\\"')
-            return `file "${normalizedPath}"`
-          })
+          .map(file => formatFfmpegListEntry(file.path))
           .join('\n')
 
         await writeFile(listFile, fileListContent, 'utf8')
 
-        // Use ffmpeg to merge audio files
-        const ffmpegCommand = `ffmpeg -f concat -safe 0 -i "${listFile}" -c copy "${mergedPath}"`
-        await execAsync(ffmpegCommand)
+        const ffmpegArgs = ['-f', 'concat', '-safe', '0', '-i', listFile, '-c', 'copy', mergedPath]
 
-        // Update room with merged audio path
-        await db.room.update({
-          where: { id: roomId },
-          data: { mergedAudio: mergedFilename }
-        })
-
-        // Clean up list file
-        await unlink(listFile)
+        try {
+          await execFileAsync('ffmpeg', ffmpegArgs)
+          await db.room.update({
+            where: { id: roomId },
+            data: { mergedAudio: mergedFilename }
+          })
+        } finally {
+          await unlink(listFile)
+        }
       } else {
         console.warn('Skipping merged audio creation due to inconsistent recording formats', {
           roomId,
           extensions: uniqueExtensions
         })
       }
-    } catch (ffmpegError) {
-      console.error('FFmpeg error:', ffmpegError)
+    } catch (ffmpegError: any) {
+      const stderr = ffmpegError?.stderr ?? ffmpegError?.message ?? ffmpegError
+      console.error('FFmpeg error:', stderr)
       // Continue without merging if ffmpeg is not available
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: 'Session ended successfully',
       recordingsCount: recordings.length
     })
@@ -111,5 +116,11 @@ async function writeFile(path: string, content: string, encoding: BufferEncoding
 
 async function unlink(path: string) {
   const fs = await import('fs/promises')
-  return fs.unlink(path)
+  try {
+    await fs.unlink(path)
+  } catch (error: any) {
+    if (error?.code !== 'ENOENT') {
+      throw error
+    }
+  }
 }
