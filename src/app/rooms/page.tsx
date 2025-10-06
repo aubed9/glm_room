@@ -13,6 +13,9 @@ interface Room {
   creator: { name: string }
   isActive: boolean
   createdAt: string
+  startedAt?: string | null
+  endedAt?: string | null
+  mergedAudio?: string | null
   _count?: { recordings: number }
 }
 
@@ -82,6 +85,10 @@ export default function RoomsPage() {
     window.location.href = `/room/${roomId}`
   }
 
+  const viewSession = (roomId: string) => {
+    window.location.href = `/room/${roomId}/session`
+  }
+
   const copyRoomLink = (roomId: string) => {
     const roomLink = `${window.location.origin}/room/${roomId}`
     navigator.clipboard.writeText(roomLink)
@@ -126,13 +133,13 @@ export default function RoomsPage() {
           {/* Active Rooms Section */}
           <Card>
             <CardHeader>
-              <CardTitle>Active Rooms</CardTitle>
-              <CardDescription>Join an existing recording session</CardDescription>
+              <CardTitle>Rooms</CardTitle>
+              <CardDescription>Join live sessions or revisit past recordings</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {rooms.length === 0 ? (
-                  <p className="text-center text-slate-500 py-8">No active rooms</p>
+                  <p className="text-center text-slate-500 py-8">No rooms yet</p>
                 ) : (
                   rooms.map((room) => (
                     <div key={room.id} className="p-4 border rounded-lg space-y-2">
@@ -148,12 +155,17 @@ export default function RoomsPage() {
                       <p className="text-xs text-slate-500">
                         {new Date(room.createdAt).toLocaleString()}
                       </p>
+                      {!room.isActive && room.endedAt && (
+                        <p className="text-xs text-slate-500">
+                          Ended {new Date(room.endedAt).toLocaleString()}
+                        </p>
+                      )}
                       {room._count && (
                         <p className="text-xs text-slate-500">
                           {room._count.recordings} recordings
                         </p>
                       )}
-                      <div className="flex gap-2 pt-2">
+                      <div className="flex flex-wrap gap-2 pt-2">
                         <Button
                           size="sm"
                           onClick={() => joinRoom(room.id)}
@@ -168,6 +180,15 @@ export default function RoomsPage() {
                         >
                           📋 Copy Link
                         </Button>
+                        {!room.isActive && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => viewSession(room.id)}
+                          >
+                            View Recordings
+                          </Button>
+                        )}
                       </div>
                     </div>
                   ))

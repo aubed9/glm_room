@@ -75,7 +75,7 @@ export default function VoicePrintPage() {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 44100
+          sampleRate: 48000
         } 
       })
       
@@ -119,7 +119,7 @@ export default function VoicePrintPage() {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 44100
+          sampleRate: 48000
         } 
       })
       

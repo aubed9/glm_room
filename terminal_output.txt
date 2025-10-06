@@ -1,0 +1,188 @@
+> Ready on http://0.0.0.0:3000
+> Socket.IO server running at ws://0.0.0.0:3000/api/socketio
+ ○ Compiling /rooms ...
+ ✓ Compiled /rooms in 2.7s (649 modules)
+ GET /rooms 200 in 3526ms
+ ○ Compiling /api/rooms ...
+ ✓ Compiled /api/rooms in 904ms (657 modules)
+prisma:query SELECT `main`.`Room`.`id`, `main`.`Room`.`name`, `main`.`Room`.`creatorId`, `main`.`Room`.`isActive`, `main`.`Room`.`startedAt`, `main`.`Room`.`endedAt`, `main`.`Room`.`createdAt`, `main`.`Room`.`updatedAt`, `main`.`Room`.`mergedAudio`, COALESCE(`aggr_selection_0_Recording`.`_aggr_count_recordings`, 0) AS `_aggr_count_recordings` FROM `main`.`Room` LEFT JOIN (SELECT `main`.`Recording`.`roomId`, COUNT(*) AS `_aggr_count_recordings` FROM `main`.`Recording` WHERE 1=1 GROUP BY `main`.`Recording`.`roomId`) AS `aggr_selection_0_Recording` ON (`main`.`Room`.`id` = `aggr_selection_0_Recording`.`roomId`) WHERE 1=1 ORDER BY `main`.`Room`.`createdAt` DESC LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`User`.`id`, `main`.`User`.`name` FROM `main`.`User` WHERE `main`.`User`.`id` IN (?,?) LIMIT ? OFFSET ?
+ GET /api/rooms 200 in 1245ms
+prisma:query BEGIN IMMEDIATE
+prisma:query INSERT INTO `main`.`Room` (`id`, `name`, `creatorId`, `isActive`, `createdAt`, `updatedAt`) VALUES (?,?,?,?,?,?) RETURNING `id` AS `id`
+prisma:query SELECT `main`.`Room`.`id`, `main`.`Room`.`name`, `main`.`Room`.`creatorId`, `main`.`Room`.`isActive`, `main`.`Room`.`startedAt`, `main`.`Room`.`endedAt`, `main`.`Room`.`createdAt`, `main`.`Room`.`updatedAt`, `main`.`Room`.`mergedAudio` FROM `main`.`Room` WHERE `main`.`Room`.`id` = ? LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`User`.`id`, `main`.`User`.`name` FROM `main`.`User` WHERE `main`.`User`.`id` IN (?) LIMIT ? OFFSET ?
+prisma:query COMMIT
+ POST /api/rooms 200 in 35ms
+prisma:query SELECT `main`.`Room`.`id`, `main`.`Room`.`name`, `main`.`Room`.`creatorId`, `main`.`Room`.`isActive`, `main`.`Room`.`startedAt`, `main`.`Room`.`endedAt`, `main`.`Room`.`createdAt`, `main`.`Room`.`updatedAt`, `main`.`Room`.`mergedAudio`, COALESCE(`aggr_selection_0_Recording`.`_aggr_count_recordings`, 0) AS `_aggr_count_recordings` FROM `main`.`Room` LEFT JOIN (SELECT `main`.`Recording`.`roomId`, COUNT(*) AS `_aggr_count_recordings` FROM `main`.`Recording` WHERE 1=1 GROUP BY `main`.`Recording`.`roomId`) AS `aggr_selection_0_Recording` ON (`main`.`Room`.`id` = `aggr_selection_0_Recording`.`roomId`) WHERE 1=1 ORDER BY `main`.`Room`.`createdAt` DESC LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`User`.`id`, `main`.`User`.`name` FROM `main`.`User` WHERE `main`.`User`.`id` IN (?,?) LIMIT ? OFFSET ?
+ GET /api/rooms 200 in 24ms
+ ○ Compiling /room/[id] ...
+ ✓ Compiled /room/[id] in 1188ms (791 modules)
+ GET /rooms 200 in 475ms
+ GET /room/cmgdqpb5u0001u594qevlgyu3 200 in 2749ms
+Client connected: EY6YqjBfvdvTpAP5AAAB from: undefined
+User Mohammed  (cmgbo1qnp0002u5zsir0bbea4) joining room cmgdqpb5u0001u594qevlgyu3
+Room cmgdqpb5u0001u594qevlgyu3 now has 1 participants
+ ✓ Compiled /api/rooms/[id] in 464ms (779 modules)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`Room`.`id`, `main`.`Room`.`name`, `main`.`Room`.`creatorId`, `main`.`Room`.`isActive`, `main`.`Room`.`startedAt`, `main`.`Room`.`endedAt`, `main`.`Room`.`createdAt`, `main`.`Room`.`updatedAt`, `main`.`Room`.`mergedAudio` FROM `main`.`Room` WHERE (`main`.`Room`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`User`.`id`, `main`.`User`.`name` FROM `main`.`User` WHERE `main`.`User`.`id` IN (?) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`Recording`.`id`, `main`.`Recording`.`roomId`, `main`.`Recording`.`userId`, `main`.`Recording`.`audioPath`, `main`.`Recording`.`duration`, `main`.`Recording`.`createdAt` FROM `main`.`Recording` WHERE `main`.`Recording`.`roomId` IN (?) LIMIT ? OFFSET ?
+ GET /api/rooms/cmgdqpb5u0001u594qevlgyu3 200 in 1297ms
+ GET /rooms 200 in 312ms
+prisma:query SELECT 1
+prisma:query SELECT `main`.`Room`.`id`, `main`.`Room`.`name`, `main`.`Room`.`creatorId`, `main`.`Room`.`isActive`, `main`.`Room`.`startedAt`, `main`.`Room`.`endedAt`, `main`.`Room`.`createdAt`, `main`.`Room`.`updatedAt`, `main`.`Room`.`mergedAudio`, COALESCE(`aggr_selection_0_Recording`.`_aggr_count_recordings`, 0) AS `_aggr_count_recordings` FROM `main`.`Room` LEFT JOIN (SELECT `main`.`Recording`.`roomId`, COUNT(*) AS `_aggr_count_recordings` FROM `main`.`Recording` WHERE 1=1 GROUP BY `main`.`Recording`.`roomId`) AS `aggr_selection_0_Recording` ON (`main`.`Room`.`id` = `aggr_selection_0_Recording`.`roomId`) WHERE 1=1 ORDER BY `main`.`Room`.`createdAt` DESC LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`User`.`id`, `main`.`User`.`name` FROM `main`.`User` WHERE `main`.`User`.`id` IN (?,?) LIMIT ? OFFSET ?
+ GET /api/rooms 200 in 38ms
+ ⚠ Cross origin request detected from 1da643ff802e.ngrok-free.app to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ ○ Compiling / ...
+ ✓ Compiled / in 743ms (796 modules)
+ GET / 200 in 998ms
+ ✓ Compiled /favicon.ico in 397ms (489 modules)
+ GET /favicon.ico 200 in 482ms
+ GET /room/cmgdqpb5u0001u594qevlgyu3 200 in 297ms
+ ✓ Compiled /api/rooms/[id] in 292ms (489 modules)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`Room`.`id`, `main`.`Room`.`name`, `main`.`Room`.`creatorId`, `main`.`Room`.`isActive`, `main`.`Room`.`startedAt`, `main`.`Room`.`endedAt`, `main`.`Room`.`createdAt`, `main`.`Room`.`updatedAt`, `main`.`Room`.`mergedAudio` FROM `main`.`Room` WHERE (`main`.`Room`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`User`.`id`, `main`.`User`.`name` FROM `main`.`User` WHERE `main`.`User`.`id` IN (?) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`Recording`.`id`, `main`.`Recording`.`roomId`, `main`.`Recording`.`userId`, `main`.`Recording`.`audioPath`, `main`.`Recording`.`duration`, `main`.`Recording`.`createdAt` FROM `main`.`Recording` WHERE `main`.`Recording`.`roomId` IN (?) LIMIT ? OFFSET ?
+ GET /api/rooms/cmgdqpb5u0001u594qevlgyu3 200 in 423ms
+Client connected: fihtB4rLnVeRBUcoAAAD from: undefined
+User aubed (cmgb426vl0000u52oglgwlh8l) joining room cmgdqpb5u0001u594qevlgyu3
+Room cmgdqpb5u0001u594qevlgyu3 now has 2 participants
+ ✓ Compiled /api/auth/login in 478ms (798 modules)
+prisma:query SELECT `main`.`User`.`id`, `main`.`User`.`email`, `main`.`User`.`name`, `main`.`User`.`voicePrint`, `main`.`User`.`createdAt`, `main`.`User`.`updatedAt` FROM `main`.`User` WHERE (`main`.`User`.`email` = ? AND 1=1) LIMIT ? OFFSET ?
+ POST /api/auth/login 404 in 543ms
+ ✓ Compiled /api/auth/signup in 495ms (798 modules)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`User`.`id`, `main`.`User`.`email`, `main`.`User`.`name`, `main`.`User`.`voicePrint`, `main`.`User`.`createdAt`, `main`.`User`.`updatedAt` FROM `main`.`User` WHERE (`main`.`User`.`email` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query INSERT INTO `main`.`User` (`id`, `email`, `name`, `createdAt`, `updatedAt`) VALUES (?,?,?,?,?) RETURNING `id` AS `id`, `email` AS `email`, `name` AS `name`, `voicePrint` AS `voicePrint`, `createdAt` AS `createdAt`, `updatedAt` AS `updatedAt`
+ POST /api/auth/signup 200 in 576ms
+ GET /rooms 200 in 403ms
+ ✓ Compiled /api/rooms in 258ms (489 modules)
+prisma:query SELECT 1
+prisma:query SELECT `main`.`Room`.`id`, `main`.`Room`.`name`, `main`.`Room`.`creatorId`, `main`.`Room`.`isActive`, `main`.`Room`.`startedAt`, `main`.`Room`.`endedAt`, `main`.`Room`.`createdAt`, `main`.`Room`.`updatedAt`, `main`.`Room`.`mergedAudio`, COALESCE(`aggr_selection_0_Recording`.`_aggr_count_recordings`, 0) AS `_aggr_count_recordings` FROM `main`.`Room` LEFT JOIN (SELECT `main`.`Recording`.`roomId`, COUNT(*) AS `_aggr_count_recordings` FROM `main`.`Recording` WHERE 1=1 GROUP BY `main`.`Recording`.`roomId`) AS `aggr_selection_0_Recording` ON (`main`.`Room`.`id` = `aggr_selection_0_Recording`.`roomId`) WHERE 1=1 ORDER BY `main`.`Room`.`createdAt` DESC LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`User`.`id`, `main`.`User`.`name` FROM `main`.`User` WHERE `main`.`User`.`id` IN (?,?) LIMIT ? OFFSET ?
+ GET /api/rooms 200 in 326ms
+ GET /room/cmgdqpb5u0001u594qevlgyu3 200 in 268ms
+ ✓ Compiled /api/rooms/[id] in 345ms (491 modules)
+Client connected: 3IVhPfNzt8yny2kAAAAF from: undefined
+prisma:query SELECT 1
+prisma:query SELECT `main`.`Room`.`id`, `main`.`Room`.`name`, `main`.`Room`.`creatorId`, `main`.`Room`.`isActive`, `main`.`Room`.`startedAt`, `main`.`Room`.`endedAt`, `main`.`Room`.`createdAt`, `main`.`Room`.`updatedAt`, `main`.`Room`.`mergedAudio` FROM `main`.`Room` WHERE (`main`.`Room`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`User`.`id`, `main`.`User`.`name` FROM `main`.`User` WHERE `main`.`User`.`id` IN (?) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`Recording`.`id`, `main`.`Recording`.`roomId`, `main`.`Recording`.`userId`, `main`.`Recording`.`audioPath`, `main`.`Recording`.`duration`, `main`.`Recording`.`createdAt` FROM `main`.`Recording` WHERE `main`.`Recording`.`roomId` IN (?) LIMIT ? OFFSET ?
+ GET /api/rooms/cmgdqpb5u0001u594qevlgyu3 200 in 506ms
+User hassan (cmgdqsyn80002u5946z21pkod) joining room cmgdqpb5u0001u594qevlgyu3
+Room cmgdqpb5u0001u594qevlgyu3 now has 3 participants
+User cmgbo1qnp0002u5zsir0bbea4 started recording in room cmgdqpb5u0001u594qevlgyu3
+User cmgb426vl0000u52oglgwlh8l started recording in room cmgdqpb5u0001u594qevlgyu3
+User cmgb426vl0000u52oglgwlh8l started recording in room cmgdqpb5u0001u594qevlgyu3
+User cmgdqsyn80002u5946z21pkod started recording in room cmgdqpb5u0001u594qevlgyu3
+User cmgdqsyn80002u5946z21pkod started recording in room cmgdqpb5u0001u594qevlgyu3
+User cmgdqsyn80002u5946z21pkod started recording in room cmgdqpb5u0001u594qevlgyu3
+User cmgdqsyn80002u5946z21pkod started recording in room cmgdqpb5u0001u594qevlgyu3
+User cmgdqsyn80002u5946z21pkod started recording in room cmgdqpb5u0001u594qevlgyu3
+User cmgdqsyn80002u5946z21pkod started recording in room cmgdqpb5u0001u594qevlgyu3
+User cmgdqsyn80002u5946z21pkod started recording in room cmgdqpb5u0001u594qevlgyu3
+User cmgdqsyn80002u5946z21pkod started recording in room cmgdqpb5u0001u594qevlgyu3
+User cmgdqsyn80002u5946z21pkod started recording in room cmgdqpb5u0001u594qevlgyu3
+User cmgbo1qnp0002u5zsir0bbea4 stopped recording in room cmgdqpb5u0001u594qevlgyu3
+User cmgdqsyn80002u5946z21pkod stopped recording in room cmgdqpb5u0001u594qevlgyu3
+User cmgb426vl0000u52oglgwlh8l stopped recording in room cmgdqpb5u0001u594qevlgyu3
+ ○ Compiling /api/rooms/upload ...
+ ✓ Compiled /api/rooms/upload in 1140ms (809 modules)
+prisma:query SELECT 1
+prisma:query BEGIN IMMEDIATE
+prisma:query INSERT INTO `main`.`Recording` (`id`, `roomId`, `userId`, `audioPath`, `duration`, `createdAt`) VALUES (?,?,?,?,?,?) RETURNING `id` AS `id`
+prisma:query SELECT `main`.`Recording`.`id`, `main`.`Recording`.`roomId`, `main`.`Recording`.`userId`, `main`.`Recording`.`audioPath`, `main`.`Recording`.`duration`, `main`.`Recording`.`createdAt` FROM `main`.`Recording` WHERE `main`.`Recording`.`id` = ? LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`User`.`id`, `main`.`User`.`name` FROM `main`.`User` WHERE `main`.`User`.`id` IN (?) LIMIT ? OFFSET ?
+prisma:query COMMIT
+ POST /api/rooms/upload 200 in 1336ms
+ GET /room/cmgdqpb5u0001u594qevlgyu3 200 in 280ms
+ GET /room/cmgdqpb5u0001u594qevlgyu3 200 in 156ms
+ GET /room/cmgdqpb5u0001u594qevlgyu3 200 in 156ms
+prisma:query SELECT 1
+prisma:query BEGIN IMMEDIATE
+prisma:query INSERT INTO `main`.`Recording` (`id`, `roomId`, `userId`, `audioPath`, `duration`, `createdAt`) VALUES (?,?,?,?,?,?) RETURNING `id` AS `id`
+prisma:query SELECT `main`.`Recording`.`id`, `main`.`Recording`.`roomId`, `main`.`Recording`.`userId`, `main`.`Recording`.`audioPath`, `main`.`Recording`.`duration`, `main`.`Recording`.`createdAt` FROM `main`.`Recording` WHERE `main`.`Recording`.`id` = ? LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`User`.`id`, `main`.`User`.`name` FROM `main`.`User` WHERE `main`.`User`.`id` IN (?) LIMIT ? OFFSET ?
+prisma:query COMMIT
+ POST /api/rooms/upload 200 in 68099ms
+ ✓ Compiled /api/rooms/[id]/end in 446ms (809 modules)
+ GET /room/cmgdqpb5u0001u594qevlgyu3 200 in 117ms
+prisma:query SELECT 1
+prisma:query BEGIN IMMEDIATE
+prisma:query UPDATE `main`.`Room` SET `isActive` = ?, `endedAt` = ?, `updatedAt` = ? WHERE (`main`.`Room`.`id` = ? AND 1=1) RETURNING `id` AS `id`, `name` AS `name`, `creatorId` AS `creatorId`, `isActive` AS `isActive`, `startedAt` AS `startedAt`, `endedAt` AS `endedAt`, `createdAt` AS `createdAt`, `updatedAt` AS `updatedAt`, `mergedAudio` AS `mergedAudio`
+prisma:query SELECT `main`.`Room`.`id`, `main`.`Room`.`name`, `main`.`Room`.`creatorId`, `main`.`Room`.`isActive`, `main`.`Room`.`startedAt`, `main`.`Room`.`endedAt`, `main`.`Room`.`createdAt`, `main`.`Room`.`updatedAt`, `main`.`Room`.`mergedAudio` FROM `main`.`Room` WHERE `main`.`Room`.`id` = ? LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`Recording`.`id`, `main`.`Recording`.`roomId`, `main`.`Recording`.`userId`, `main`.`Recording`.`audioPath`, `main`.`Recording`.`duration`, `main`.`Recording`.`createdAt` FROM `main`.`Recording` WHERE `main`.`Recording`.`roomId` IN (?) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`User`.`id`, `main`.`User`.`name` FROM `main`.`User` WHERE `main`.`User`.`id` IN (?,?) LIMIT ? OFFSET ?
+prisma:query COMMIT
+FFmpeg error: [Error: Command failed: ffmpeg -f concat -safe 0 -i "C:\E\software\aubed\meeting-analyzer-ai (6)\glm_room\uploads\recordings\cmgdqpb5u0001u594qevlgyu3_list.txt" -c copy "C:\E\software\aubed\meeting-analyzer-ai (6)\glm_room\uploads\recordings\cmgdqpb5u0001u594qevlgyu3_merged.webm"  
+ffmpeg version 2025-07-23-git-829680f96a-full_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 15.1.0 (Rev6, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint
+  libavutil      60.  6.100 / 60.  6.100
+  libavcodec     62.  8.100 / 62.  8.100
+  libavformat    62.  1.103 / 62.  1.103
+  libavdevice    62.  0.100 / 62.  0.100
+  libavfilter    11.  3.100 / 11.  3.100
+  libswscale      9.  0.100 /  9.  0.100
+  libswresample   6.  0.100 /  6.  0.100
+[concat @ 000001b85172f280] Impossible to open '"C:/E/software/aubed/meeting-analyzer-ai'
+[in#0 @ 000001b85172f000] Error opening input: Invalid argument
+Error opening input file C:\E\software\aubed\meeting-analyzer-ai (6)\glm_room\uploads\recordings\cmgdqpb5u0001u594qevlgyu3_list.txt.
+Error opening input files: Invalid argument
+] {
+  code: 4294967274,
+  killed: false,
+  signal: null,
+  cmd: 'ffmpeg -f concat -safe 0 -i "C:\\E\\software\\aubed\\meeting-analyzer-ai (6)\\glm_room\\uploads\\recordings\\cmgdqpb5u0001u594qevlgyu3_list.txt" -c copy "C:\\E\\software\\aubed\\meeting-analyzer-ai (6)\\glm_room\\uploads\\recordings\\cmgdqpb5u0001u594qevlgyu3_merged.webm"',
+  stdout: '',
+  stderr: 'ffmpeg version 2025-07-23-git-829680f96a-full_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers\r\n' +
+    '  built with gcc 15.1.0 (Rev6, Built by MSYS2 project)\r\n' +        
+    '  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint\r\n' +
+    '  libavutil      60.  6.100 / 60.  6.100\r\n' +
+    '  libavcodec     62.  8.100 / 62.  8.100\r\n' +
+    '  libavformat    62.  1.103 / 62.  1.103\r\n' +
+    '  libavdevice    62.  0.100 / 62.  0.100\r\n' +
+    '  libavfilter    11.  3.100 / 11.  3.100\r\n' +
+    '  libswscale      9.  0.100 /  9.  0.100\r\n' +
+    '  libswresample   6.  0.100 /  6.  0.100\r\n' +
+    `[concat @ 000001b85172f280] Impossible to open '"C:/E/software/aubed/meeting-analyzer-ai'\r\n` +
+    '[in#0 @ 000001b85172f000] Error opening input: Invalid argument\r\n' +
+    'Error opening input file C:\\E\\software\\aubed\\meeting-analyzer-ai (6)\\glm_room\\uploads\\recordings\\cmgdqpb5u0001u594qevlgyu3_list.txt.\r\n' +
+    'Error opening input files: Invalid argument\r\n'
+}
+ POST /api/rooms/cmgdqpb5u0001u594qevlgyu3/end 200 in 1388ms
+ ✓ Compiled /room/[id]/session in 477ms (816 modules)
+ GET /room/cmgdqpb5u0001u594qevlgyu3 200 in 99ms
+Client disconnected: EY6YqjBfvdvTpAP5AAAB reason: transport close
+User Mohammed  left room cmgdqpb5u0001u594qevlgyu3
+ GET /room/cmgdqpb5u0001u594qevlgyu3/session 200 in 1607ms
+ ✓ Compiled /api/rooms/[id] in 346ms (495 modules)
+prisma:query SELECT `main`.`Room`.`id`, `main`.`Room`.`name`, `main`.`Room`.`creatorId`, `main`.`Room`.`isActive`, `main`.`Room`.`startedAt`, `main`.`Room`.`endedAt`, `main`.`Room`.`createdAt`, `main`.`Room`.`updatedAt`, `main`.`Room`.`mergedAudio` FROM `main`.`Room` WHERE (`main`.`Room`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`User`.`id`, `main`.`User`.`name` FROM `main`.`User` WHERE `main`.`User`.`id` IN (?) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`Recording`.`id`, `main`.`Recording`.`roomId`, `main`.`Recording`.`userId`, `main`.`Recording`.`audioPath`, `main`.`Recording`.`duration`, `main`.`Recording`.`createdAt` FROM `main`.`Recording` WHERE `main`.`Recording`.`roomId` IN (?) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`User`.`id`, `main`.`User`.`name` FROM `main`.`User` WHERE `main`.`User`.`id` IN (?,?) LIMIT ? OFFSET ?
+ GET /api/rooms/cmgdqpb5u0001u594qevlgyu3 200 in 705ms
+ GET /room/cmgdqpb5u0001u594qevlgyu3 200 in 671ms
+ ○ Compiling /api/rooms/download/[filename] ...
+ ✓ Compiled /api/rooms/download/[filename] in 839ms (806 modules)
+ GET /room/cmgdqpb5u0001u594qevlgyu3 200 in 953ms
+ GET /api/rooms/download/cmgdqpb5u0001u594qevlgyu3_cmgbo1qnp0002u5zsir0bbea4_1759671334414.webm 200 in 1691ms
+ GET /api/rooms/download/cmgdqpb5u0001u594qevlgyu3_cmgb426vl0000u52oglgwlh8l_1759671402771.webm 200 in 1709ms
+ GET /room/cmgdqpb5u0001u594qevlgyu3 200 in 60ms
+ GET /room/cmgdqpb5u0001u594qevlgyu3 200 in 52ms
+prisma:query BEGIN IMMEDIATE
+prisma:query INSERT INTO `main`.`Recording` (`id`, `roomId`, `userId`, `audioPath`, `duration`, `createdAt`) VALUES (?,?,?,?,?,?) RETURNING `id` AS `id`
+prisma:query SELECT `main`.`Recording`.`id`, `main`.`Recording`.`roomId`, `main`.`Recording`.`userId`, `main`.`Recording`.`audioPath`, `main`.`Recording`.`duration`, `main`.`Recordmain`.`Room`.`mergedAudio` FROM `main`.`Room` WHERE (`main`.`Room`.`id` = ? AND 1=1) LIMIT ? OFFSEmain`.`Room`.`mergedAudio` FROM `main`.`Room` WHERE (`main`.`Room`.`id` = ? AND 1=1) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`User`.`id`, `main`.`User`.`name` FROM `main`.`User` WHERE `main`.`User`.`id` IN (?) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`Recording`.`id`, `main`.`Recording`.`roomId`, `main`.`Recording`.`userId`, `main`.`Recording`.`audioPath`, `main`.`Recording`.`duration`, `main`.`Recording`.`createdAt` FROM `main`.`Recording` WHERE `main`.`Recording`.`roomId` IN (?) LIMIT ? OFFSET ?
+prisma:query SELECT `main`.`User`.`id`, `main`.`User`.`name` FROM `main`.`User` WHERE `main`.`User`.`id` IN (?,?,?) LIMIT ? OFFSET ?       
+ GET /api/rooms/cmgdqpb5u0001u594qevlgyu3 200 in 767ms
+ GET /api/rooms/download/cmgdqpb5u0001u594qevlgyu3_cmgbo1qnp0002u5zsir0bbea4_1759671334414.webm 200 in 80ms
+ GET /api/rooms/download/cmgdqpb5u0001u594qevlgyu3_cmgb426vl0000u52oglgwlh8l_1759671402771.webm 200 in 147ms
+ GET /api/rooms/download/cmgdqpb5u0001u594qevlgyu3_cmgdqsyn80002u5946z21pkod_1759671458778.webm 200 in 175ms
+ GET /api/rooms/download/cmgdqpb5u0001u594qevlgyu3_cmgdqsyn80002u5946z21pkod_1759671458778.webm 200 in 50ms

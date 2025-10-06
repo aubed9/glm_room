@@ -30,6 +30,40 @@ interface Room {
   recordings: Recording[]
 }
 
+const getExtension = (filename: string | null | undefined) => {
+  if (!filename) return ''
+  const parts = filename.split('.')
+  return parts.length > 1 ? parts.pop()!.toLowerCase() : ''
+}
+
+const getAudioContentType = (filename: string | null | undefined) => {
+  const extension = getExtension(filename)
+
+  switch (extension) {
+    case 'wav':
+    case 'wave':
+      return 'audio/wav'
+    case 'webm':
+      return 'audio/webm'
+    case 'ogg':
+      return 'audio/ogg'
+    case 'mp3':
+      return 'audio/mpeg'
+    case 'm4a':
+    case 'mp4':
+      return 'audio/mp4'
+    default:
+      return 'audio/webm'
+  }
+}
+
+const sanitizeForDownload = (value: string) => value.trim().replace(/\s+/g, '_')
+
+const buildDownloadName = (base: string, filename: string | null | undefined) => {
+  const extension = getExtension(filename) || 'webm'
+  return `${sanitizeForDownload(base)}.${extension}`
+}
+
 export default function SessionPage() {
   const params = useParams()
   const roomId = params.id as string
@@ -142,11 +176,17 @@ export default function SessionPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <audio controls className="w-full">
-                <source src={`/api/rooms/download/${room.mergedAudio}`} type="audio/wav" />
+                <source
+                  src={`/api/rooms/download/${room.mergedAudio}`}
+                  type={getAudioContentType(room.mergedAudio)}
+                />
                 Your browser does not support the audio element.
               </audio>
               <Button
-                onClick={() => downloadAudio(room.mergedAudio!, `${room.name}_complete.wav`)}
+                onClick={() => downloadAudio(
+                  room.mergedAudio!,
+                  buildDownloadName(`${room.name}_complete`, room.mergedAudio)
+                )}
                 className="w-full"
               >
                 📥 Download Complete Audio
@@ -191,7 +231,10 @@ export default function SessionPage() {
                     
                     <div className="space-y-2">
                       <audio controls className="w-full">
-                        <source src={`/api/rooms/download/${recording.audioPath}`} type="audio/wav" />
+                        <source
+                          src={`/api/rooms/download/${recording.audioPath}`}
+                          type={getAudioContentType(recording.audioPath)}
+                        />
                         Your browser does not support the audio element.
                       </audio>
                       <Button
@@ -199,7 +242,7 @@ export default function SessionPage() {
                         variant="outline"
                         onClick={() => downloadAudio(
                           recording.audioPath,
-                          `${recording.user.name.replace(/\s+/g, '_')}_recording.wav`
+                          buildDownloadName(`${recording.user.name}_recording`, recording.audioPath)
                         )}
                       >
                         📥 Download
