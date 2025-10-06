@@ -768,7 +768,15 @@ export default function RoomPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {!room.isActive ? (
-                <p className="text-center text-slate-500 py-4">This session has ended</p>
+                <div className="space-y-4">
+                  <p className="text-center text-slate-500 py-4">This session has ended</p>
+                  <Button
+                    className="w-full"
+                    onClick={() => window.location.href = `/room/${roomId}/session`}
+                  >
+                    View Recordings
+                  </Button>
+                </div>
               ) : isCreator ? (
                 <div className="space-y-4">
                   {!isConnected && (
